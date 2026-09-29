@@ -15,7 +15,7 @@ from agents.ctx import Settings, get_db, load_settings
 def test_enums():
     assert {c.value for c in CauseCode} == {
         "CEILING_BELOW_COST", "HEADROOM_ERODING", "SINGLE_ORIGIN_API",
-        "FEW_PRODUCERS", "QUALITY_NSQ", "SUPPLIER_OTD_DROP",
+        "FEW_PRODUCERS", "QUALITY_NSQ", "SUPPLIER_OTD_DROP", "LOGISTICS_DELAY",
     }
     assert [b.value for b in SignalBand] == ["GREEN", "AMBER", "RED"]
     assert {t.value for t in DataTag} == {"REAL", "PROXY", "SYNTH"}

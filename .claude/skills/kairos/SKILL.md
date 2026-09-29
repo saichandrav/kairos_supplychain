@@ -1,9 +1,9 @@
 ---
-name: flowforge
-description: Working rules for the FlowForge repo (SAP Hackfest 2026, team PSGITECH169) — a 6-agent + human-approval system that flags NPPA/DPCO price-controlled medicines whose production economics are breaking before a shortage appears, built on SAP HANA Cloud, SAP BTP and SAP Build. Use for any coding, data, SAP, demo or commit task in this repo.
+name: kairos
+description: Working rules for the Kairos repo (SAP Hackfest 2026) — a 6-agent + human-approval system that flags NPPA/DPCO price-controlled medicines whose production economics are breaking before a shortage appears, built on SAP HANA Cloud, SAP BTP and SAP Build. Use for any coding, data, SAP, demo or commit task in this repo.
 ---
 
-# FlowForge working rules
+# Kairos working rules
 
 ## 1. Load context cheaply (do this first, every session)
 1. Read `docs/STATUS.md` (short by design). It says what is done, what is in progress, who owns what, and what is blocked.

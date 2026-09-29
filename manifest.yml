@@ -1,0 +1,13 @@
+---
+applications:
+  - name: kairos-api
+    memory: 512M
+    disk_quota: 1024M
+    buildpack: python_buildpack
+    command: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    health-check-type: http
+    health-check-http-endpoint: /health
+    timeout: 180
+    env:
+      DB_BACKEND: hana
+      HANA_PORT: 443

@@ -9,9 +9,10 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Iterator, Sequence
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -19,7 +20,7 @@ from dotenv import load_dotenv
 log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SQLITE_PATH = REPO_ROOT / "data" / "flowforge.sqlite"
+SQLITE_PATH = REPO_ROOT / "data" / "kairos.sqlite"
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,12 @@ class Settings:
     llm_provider: str = "none"
     llm_model: str = ""
     anthropic_api_key: str = field(default="", repr=False)
+    openrouter_api_key: str = field(default="", repr=False)
+    openrouter_model: str = "openai/gpt-4o-mini"
+    searoutes_api_key: str = field(default="", repr=False)
+    searoutes_base_url: str = "https://api.searoutes.com"
     app_api_key: str = field(default="", repr=False)
+    newsapi_key: str = field(default="", repr=False)
 
 
 def load_settings(dotenv: bool = True) -> Settings:
@@ -58,7 +64,12 @@ def load_settings(dotenv: bool = True) -> Settings:
         llm_provider=(env("LLM_PROVIDER") or "none").strip().lower(),
         llm_model=env("LLM_MODEL", ""),
         anthropic_api_key=env("ANTHROPIC_API_KEY", ""),
+        openrouter_api_key=env("OPENROUTER_API_KEY", ""),
+        openrouter_model=env("OPENROUTER_MODEL", "") or "openai/gpt-4o-mini",
+        searoutes_api_key=env("SEAROUTES_API_KEY", ""),
+        searoutes_base_url=env("SEAROUTES_BASE_URL", "") or "https://api.searoutes.com",
         app_api_key=env("APP_API_KEY", ""),
+        newsapi_key=env("NEWSAPI_KEY", ""),
     )
 
 
@@ -66,12 +77,40 @@ class Db:
     """Thin DB-API wrapper: query() -> DataFrame, execute(), executemany().
 
     Autocommits after every write so a crash never leaves a half-open
-    transaction on the shared HANA instance.
+    transaction on the shared HANA instance; `with db.transaction():` groups
+    writes into one commit and rolls them all back on error.
     """
 
     def __init__(self, conn: Any, backend: str):
         self._conn = conn
         self.backend = backend
+        self._in_tx = False
+        # hdbcli connections autocommit by default: an explicit commit() would only cost a round trip
+        self._autocommit = bool(getattr(conn, "getautocommit", lambda: False)())
+
+    @contextmanager
+    def transaction(self) -> Iterator["Db"]:
+        """Group writes into one commit (all or nothing) instead of committing after each statement."""
+        if self._in_tx:
+            yield self
+            return
+        self._in_tx = True
+        if self._autocommit:
+            self._conn.setautocommit(False)
+        try:
+            yield self
+            self._conn.commit()
+        except BaseException:
+            self._conn.rollback()
+            raise
+        finally:
+            if self._autocommit:
+                self._conn.setautocommit(True)
+            self._in_tx = False
+
+    def _commit(self) -> None:
+        if not (self._in_tx or self._autocommit):
+            self._conn.commit()
 
     def query(self, sql: str, params: Sequence[Any] | None = None) -> pd.DataFrame:
         cur = self._conn.cursor()
@@ -86,7 +125,7 @@ class Db:
         cur = self._conn.cursor()
         try:
             cur.execute(sql, tuple(params or ()))
-            self._conn.commit()
+            self._commit()
             return cur.rowcount
         finally:
             cur.close()
@@ -98,7 +137,7 @@ class Db:
         cur = self._conn.cursor()
         try:
             cur.executemany(sql, rows)
-            self._conn.commit()
+            self._commit()
             return len(rows)
         finally:
             cur.close()
@@ -118,8 +157,9 @@ def _connect_hana(s: Settings) -> Any:
 
     if not (s.hana_host and s.hana_user and s.hana_password):
         raise RuntimeError("DB_BACKEND=hana needs HANA_HOST, HANA_USER and HANA_PASSWORD in env")
+    host = s.hana_host.split(":")[0].strip() if ":" in s.hana_host else s.hana_host.strip()
     kwargs: dict[str, Any] = dict(
-        address=s.hana_host,
+        address=host,
         port=s.hana_port,
         user=s.hana_user,
         password=s.hana_password,
@@ -135,7 +175,7 @@ def _connect_hana(s: Settings) -> Any:
 def get_db(settings: Settings | None = None, sqlite_path: str | Path | None = None) -> Db:
     """Open a connection for the configured backend.
 
-    `sqlite_path` overrides data/flowforge.sqlite (tests pass a tmp file or ":memory:").
+    `sqlite_path` overrides data/kairos.sqlite (tests pass a tmp file or ":memory:").
     """
     s = settings or load_settings()
     if s.db_backend == "hana":

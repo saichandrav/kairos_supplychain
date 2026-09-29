@@ -1,0 +1,40 @@
+{
+  "_note": "SYNTH demo supplier panel for the Route Optimizer's 'Order a Medicine' picker. Fictional supplier names, prices and reliability scores; not a live vendor list. Cities are limited to ports already mapped in rules/sea_routes.yaml so routes and coordinates line up.",
+  "source": "Kairos synthetic demo supplier panel (no live vendor feed); prices, lead times and reliability are illustrative",
+  "is_proxy": "SYNTH",
+  "medicines": [
+    {
+      "medicine_id": "BENZATHINE-BENZYLPENICIL-5E7D1810",
+      "name": "Benzylpenicillin 500mg Inj",
+      "generic": "Benzathine Benzylpenicillin",
+      "suppliers": [
+        {"supplier_id": "SUP-BZP-01", "name": "Shandong Reyphar Biopharm", "country": "CN", "city": "Shanghai", "unit_price_inr": 14.20, "reliability": 0.88, "lead_time_days": 6, "certification": "WHO-GMP"},
+        {"supplier_id": "SUP-BZP-02", "name": "North China Pharma Co.", "country": "CN", "city": "Qingdao", "unit_price_inr": 13.60, "reliability": 0.82, "lead_time_days": 7, "certification": "CFDA-GMP"},
+        {"supplier_id": "SUP-BZP-03", "name": "Nordpharm GmbH", "country": "DE", "city": "Hamburg", "unit_price_inr": 22.80, "reliability": 0.96, "lead_time_days": 3, "certification": "EU-GMP"},
+        {"supplier_id": "SUP-BZP-04", "name": "Korea BioAntibiotics", "country": "KR", "city": "Busan", "unit_price_inr": 17.90, "reliability": 0.90, "lead_time_days": 4, "certification": "KGMP"}
+      ]
+    },
+    {
+      "medicine_id": "ATROPINE-6BCEA471",
+      "name": "Atropine Sulfate 0.6mg Inj",
+      "generic": "Atropine",
+      "suppliers": [
+        {"supplier_id": "SUP-ATR-01", "name": "Zhejiang Apeloa Pharma", "country": "CN", "city": "Ningbo", "unit_price_inr": 8.40, "reliability": 0.85, "lead_time_days": 6, "certification": "WHO-GMP"},
+        {"supplier_id": "SUP-ATR-02", "name": "Estelle Chemicals", "country": "IT", "city": "Genoa", "unit_price_inr": 15.20, "reliability": 0.94, "lead_time_days": 3, "certification": "EU-GMP"},
+        {"supplier_id": "SUP-ATR-03", "name": "Fujian Southeast Pharma", "country": "CN", "city": "Shanghai", "unit_price_inr": 7.90, "reliability": 0.80, "lead_time_days": 7, "certification": "CFDA-GMP"},
+        {"supplier_id": "SUP-ATR-04", "name": "Daewon Pharmaceutical", "country": "KR", "city": "Incheon", "unit_price_inr": 11.50, "reliability": 0.92, "lead_time_days": 4, "certification": "KGMP"}
+      ]
+    },
+    {
+      "medicine_id": "AMIKACIN-ED68AE37",
+      "name": "Amikacin Sulfate 500mg Inj",
+      "generic": "Amikacin",
+      "suppliers": [
+        {"supplier_id": "SUP-AMK-01", "name": "Meiji Seika Pharma", "country": "JP", "city": "Kobe", "unit_price_inr": 21.00, "reliability": 0.97, "lead_time_days": 3, "certification": "PMDA-GMP"},
+        {"supplier_id": "SUP-AMK-02", "name": "Zhuhai United Labs", "country": "CN", "city": "Shanghai", "unit_price_inr": 12.30, "reliability": 0.83, "lead_time_days": 6, "certification": "CFDA-GMP"},
+        {"supplier_id": "SUP-AMK-03", "name": "Laboratorios Ern", "country": "ES", "city": "Barcelona", "unit_price_inr": 19.50, "reliability": 0.93, "lead_time_days": 4, "certification": "EU-GMP"},
+        {"supplier_id": "SUP-AMK-04", "name": "Hangzhou Minsheng Pharma", "country": "CN", "city": "Ningbo", "unit_price_inr": 11.80, "reliability": 0.79, "lead_time_days": 7, "certification": "CFDA-GMP"}
+      ]
+    }
+  ]
+}

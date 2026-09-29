@@ -1,6 +1,6 @@
-# FlowForge — SAP Hackfest 2026 (PSGITECH169)
+# Kairos — SAP Hackfest 2026
 
-Load the `flowforge` skill before any work in this repo. It holds the working rules (context loading, token discipline, commit rules, secrets, domain guardrails).
+Load the `kairos` skill before any work in this repo. It holds the working rules (context loading, token discipline, commit rules, secrets, domain guardrails).
 
 - Current state: `docs/STATUS.md`. Read it first.
 - Plan: `docs/IMPLEMENTATION_PLAN.md`. Grep `^## §` and read only the section you need.

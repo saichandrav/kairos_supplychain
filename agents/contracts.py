@@ -45,6 +45,7 @@ class CauseCode(str, Enum):
     FEW_PRODUCERS = "FEW_PRODUCERS"
     QUALITY_NSQ = "QUALITY_NSQ"
     SUPPLIER_OTD_DROP = "SUPPLIER_OTD_DROP"
+    LOGISTICS_DELAY = "LOGISTICS_DELAY"
 
 
 class DataTag(str, Enum):
@@ -95,6 +96,7 @@ class RunTrigger(str, Enum):
     NIGHTLY = "NIGHTLY"
     ON_DEMAND = "ON_DEMAND"
     SHOCK = "SHOCK"
+    DISRUPTION = "DISRUPTION"
 
 
 # ---------------------------------------------------------------- shared parts
@@ -342,6 +344,369 @@ class ApprovalDecision(_Model):
 
 
 # ---------------------------------------------------------------- A6
+
+
+class DisruptionCategory(str, Enum):
+    """Disruption signal categories for the Disruption Sensing Agent."""
+
+    MARITIME_SECURITY = "MARITIME_SECURITY"
+    WEATHER = "WEATHER"
+    TARIFF = "TARIFF"
+    PORT_CONGESTION = "PORT_CONGESTION"
+    GEOPOLITICAL = "GEOPOLITICAL"
+    SUPPLIER = "SUPPLIER"
+    OTHER = "OTHER"
+
+
+class DisruptionSeverity(str, Enum):
+    """Severity of a disruption signal, aligned with SignalBand."""
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class DisruptionSignalIn(_Model):
+    """Raw external signal submitted for AI assessment."""
+
+    signal_id: str = Field(description="Unique identifier for this signal")
+    raw_text: str = Field(max_length=10000, description="The external signal text to classify")
+    source: str = Field(description="Origin system or feed name")
+    source_url: str | None = None
+    received_at: datetime = Field(default_factory=_utcnow)
+    context: dict[str, Any] = Field(default_factory=dict, description="Additional context for assessment")
+
+
+class AffectedEntity(_Model):
+    """An entity affected by a disruption (port, supplier, route, etc.)."""
+
+    entity_type: str
+    entity_name: str
+    confidence: Share = 0.5
+
+
+class AffectedSeaRoute(_Model):
+    """A sea route affected by a disruption, resolved from rules/sea_routes.yaml."""
+
+    origin: str = Field(description="Country code (e.g. CN, DE)")
+    origin_name: str
+    origin_ports: list[str] = Field(default_factory=list)
+    destination_ports: list[str] = Field(default_factory=list)
+    chokepoints: list[str] = Field(default_factory=list)
+    disrupted_chokepoint: str | None = None
+    transit_days_normal: int | None = None
+    transit_days_rerouted: int | None = None
+    reroute_via: str | None = None
+    delay_days: int | None = Field(default=None, description="Extra transit days if rerouted")
+    affected_formulations: list[str] = Field(default_factory=list, description="FORM_IDs dependent on this origin")
+
+
+class DisruptionAssessment(_Model):
+    """Structured AI assessment of a disruption signal."""
+
+    signal_id: str
+    event_type: DisruptionCategory
+    summary: str = Field(max_length=500)
+    description: str | None = Field(default=None, max_length=2000)
+    severity: DisruptionSeverity
+    location: str | None = None
+    event_time: str | None = Field(default=None, description="ISO timestamp or descriptive time if exact time unknown")
+    source: str
+    affected_entities: list[AffectedEntity] = Field(default_factory=list)
+    potential_impact: str | None = Field(default=None, max_length=1000)
+    confidence: Share
+    evidence: list[str] = Field(default_factory=list)
+    uncertainties: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    requires_human_review: bool = True
+    rationale: str | None = Field(default=None, max_length=500)
+    assessed_at: datetime = Field(default_factory=_utcnow)
+    model_id: str | None = None
+    affected_sea_routes: list[AffectedSeaRoute] = Field(default_factory=list)
+    total_affected_formulations: int = 0
+    escalated: bool = False
+    escalation_reason: str | None = None
+
+
+# ---------------------------------------------------------------- Scenario Planning
+
+
+class WhatIfKind(str, Enum):
+    """What-if disruption types the Scenario Planning Agent can simulate."""
+
+    CHOKEPOINT_CLOSURE = "CHOKEPOINT_CLOSURE"
+    CHOKEPOINT_RISK = "CHOKEPOINT_RISK"
+    PORT_CLOSURE = "PORT_CLOSURE"
+    PORT_CONGESTION = "PORT_CONGESTION"
+    TARIFF_INCREASE = "TARIFF_INCREASE"
+    SUPPLIER_OFFLINE = "SUPPLIER_OFFLINE"
+    ORIGIN_EXPORT_STOP = "ORIGIN_EXPORT_STOP"
+
+
+class WhatIfSpec(_Model):
+    """One simulated disruption. `target` is a chokepoint, Indian port, origin country code or vendor LIFNR."""
+
+    kind: WhatIfKind
+    target: str = Field(min_length=1, max_length=120)
+    magnitude_pct: float = Field(default=0.0, ge=0, le=500, description="TARIFF_INCREASE: uplift in percent")
+    duration_days: int = Field(default=30, ge=1, le=365)
+    label: str | None = Field(default=None, max_length=200)
+
+
+class StrategyType(str, Enum):
+    """Response strategies compared on cost, time and risk."""
+
+    ABSORB = "ABSORB"
+    REROUTE = "REROUTE"
+    AIR_EXPEDITE = "AIR_EXPEDITE"
+    BUFFER_STOCK = "BUFFER_STOCK"
+    ALT_SOURCING = "ALT_SOURCING"
+
+
+class LaneExposure(_Model):
+    """How one API origin lane of a formulation is hit by the disruption."""
+
+    origin: str
+    share: Share
+    absorb_delay_days: float = Field(ge=0)
+    reroute_delay_days: float | None = Field(default=None, ge=0)
+    reroute_label: str | None = None
+    security_risk: bool = False
+    supply_loss: Share = 0.0
+    tariff_pct: float = 0.0
+
+
+class StrategyEval(_Model):
+    """One strategy evaluated for one formulation. Numbers come from rules/disruption.yaml, never the LLM."""
+
+    strategy: StrategyType
+    feasible: bool
+    cost_inr: Money
+    time_to_effect_days: float = Field(ge=0)
+    stockout_units: int = Field(ge=0)
+    residual_risk: Share
+    score: float | None = None
+    note: str | None = None
+
+
+class FormulationImpact(_Model):
+    """Exposure of one stocked formulation to the simulated disruption."""
+
+    formulation_id: str
+    material: str
+    name: str | None = None
+    ved: str | None = None
+    daily_consumption: float = Field(ge=0)
+    usable_stock: float = Field(ge=0)
+    days_of_cover: float | None = Field(default=None, ge=0)
+    open_po_qty: float = Field(default=0.0, ge=0)
+    unit_rate_inr: Money | None = None
+    lanes: list[LaneExposure] = Field(default_factory=list)
+    exposure_days_absorb: float = Field(ge=0)
+    exposure_days_reroute: float = Field(ge=0)
+    baseline_stockout_units: int = Field(default=0, ge=0, description="short even with no disruption")
+    supply_loss_share: Share = 0.0
+    tariff_uplift_pct: float = 0.0
+    margin_band_after: SignalBand | None = None
+    strategies: list[StrategyEval] = Field(default_factory=list)
+    recommended: StrategyType | None = None
+
+
+class PlanOption(_Model):
+    """A plan-level option: one pure strategy for every exposed formulation, or the recommended mix."""
+
+    option_id: str
+    label: str
+    cost_inr: Money
+    time_to_effect_days: float = Field(ge=0)
+    stockout_units: int = Field(ge=0)
+    residual_risk: Share
+    formulations_covered: int = Field(ge=0)
+    score: float
+
+
+class ScenarioPlan(_Model):
+    """Scenario Planning Agent output → FF_AG_WHATIF."""
+
+    plan_id: str
+    run_id: str | None = None
+    signal_id: str | None = None
+    specs: list[WhatIfSpec]
+    as_of: date
+    impacts: list[FormulationImpact] = Field(default_factory=list)
+    options: list[PlanOption] = Field(default_factory=list)
+    recommended_option: str | None = None
+    narrative: str | None = None
+    narrative_used_llm: bool = False
+    data_sources: list[DataSourceRef] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+# ---------------------------------------------------------------- Rerouting & Logistics
+
+
+class RouteChoice(_Model):
+    """One feasible way to move an inbound consignment."""
+
+    option_id: str
+    label: str
+    mode: Literal["SEA", "AIR"]
+    carrier: str | None = None
+    via: list[str] = Field(default_factory=list)
+    new_eta: date
+    delay_days: int
+    extra_cost_inr: Money
+    late_units: int = Field(default=0, ge=0)
+    security_risk: bool = False
+
+
+class ShipmentAction(_Model):
+    """Logistics Agent re-plan of one open PO line (EKPO without goods receipt) → FF_AG_SHIPMENT_PLAN."""
+
+    ebeln: str
+    ebelp: int
+    material: str
+    formulation_id: str | None = None
+    supplier: str | None = None
+    origin: str | None = None
+    qty: float = Field(ge=0)
+    value_inr: Money
+    old_eta: date
+    stockout_date: date | None = None
+    chosen: RouteChoice
+    alternatives: list[RouteChoice] = Field(default_factory=list)
+    decision_id: str | None = None
+    status: str = "PLANNED"
+
+
+class Notification(_Model):
+    """Draft message to a downstream partner → FF_AG_NOTIFICATION. HELD until its decision is approved."""
+
+    notification_id: str
+    audience: Literal["SUPPLIER", "WARD", "PROCUREMENT", "FORWARDER"]
+    recipient: str
+    subject: str = Field(max_length=200)
+    body: str = Field(max_length=4000)
+    status: Literal["QUEUED", "HELD", "CANCELLED"] = "QUEUED"
+    decision_id: str | None = None
+
+
+class LogisticsPlan(_Model):
+    run_id: str
+    shipments: list[ShipmentAction] = Field(default_factory=list)
+    notifications: list[Notification] = Field(default_factory=list)
+    total_extra_cost_inr: Money = Decimal("0")
+    carrier_load: dict[str, int] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------- Inventory Rebalancing
+
+
+class SafetyStockUpdate(_Model):
+    """Recomputed safety stock / reorder point for the disrupted lead time → FF_AG_SAFETY_STOCK."""
+
+    material: str
+    plant: str
+    formulation_id: str | None = None
+    daily_mean: float = Field(ge=0)
+    daily_sd: float = Field(ge=0)
+    lead_time_days: float = Field(ge=0)
+    delay_days: float = Field(ge=0)
+    service_z: float = Field(ge=0)
+    safety_stock_old: float = Field(ge=0)
+    safety_stock_new: float = Field(ge=0)
+    reorder_point_new: float = Field(ge=0)
+    usable_stock: float = Field(ge=0)
+    open_po_qty: float = Field(ge=0)
+    net_requirement: float = Field(ge=0)
+
+
+class TransferOrder(_Model):
+    """Stock transfer between storage locations (S/4 movement 311) → FF_AG_TRANSFER."""
+
+    transfer_id: str
+    material: str
+    plant: str
+    from_location: str
+    to_location: str
+    qty: float = Field(gt=0)
+    cover_to_before: float = Field(ge=0)
+    cover_to_after: float = Field(ge=0)
+    cover_from_after: float = Field(ge=0)
+    cold_chain: bool = False
+    decision_id: str | None = None
+    status: str = "PLANNED"
+
+
+class InventoryPlan(_Model):
+    run_id: str
+    safety_stock: list[SafetyStockUpdate] = Field(default_factory=list)
+    transfers: list[TransferOrder] = Field(default_factory=list)
+    procurement: list[Forecast] = Field(default_factory=list, description="LOGISTICS_DELAY forecasts handed to A4/A5")
+
+
+# ---------------------------------------------------------------- Compliance & human-in-the-loop
+
+
+class Autonomy(str, Enum):
+    AUTO = "AUTO"
+    HUMAN = "HUMAN"
+    BLOCKED = "BLOCKED"
+
+
+class DecisionStatus(str, Enum):
+    EXECUTED = "EXECUTED"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    BLOCKED = "BLOCKED"
+
+
+class DecisionType(str, Enum):
+    SIGNAL_TRIAGE = "SIGNAL_TRIAGE"
+    SCENARIO_PLAN = "SCENARIO_PLAN"
+    SHIPMENT_ROUTING = "SHIPMENT_ROUTING"
+    STOCK_TRANSFER = "STOCK_TRANSFER"
+    SAFETY_STOCK_UPDATE = "SAFETY_STOCK_UPDATE"
+    PROCUREMENT_PROPOSAL = "PROCUREMENT_PROPOSAL"
+
+
+class ComplianceCheck(_Model):
+    check_id: str
+    status: CheckStatus
+    detail: str
+
+
+class DecisionOption(_Model):
+    option_id: str
+    label: str
+    cost_inr: Money | None = None
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
+class Decision(_Model):
+    """Every autonomous or human-gated decision, with rationale → FF_AG_DECISION (+ hash-chained audit row)."""
+
+    decision_id: str
+    run_id: str
+    agent: str
+    decision_type: DecisionType
+    subject: str = Field(max_length=200)
+    autonomy: Autonomy
+    status: DecisionStatus
+    rationale: str = Field(max_length=4000)
+    options: list[DecisionOption] = Field(default_factory=list)
+    recommended_option: str | None = None
+    chosen_option: str | None = None
+    cost_inr: Money | None = None
+    checks: list[ComplianceCheck] = Field(default_factory=list)
+    human_reasons: list[str] = Field(default_factory=list)
+    data_sources: list[DataSourceRef] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_utcnow)
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    decision_reason: str | None = None
 
 
 class AuditEvent(_Model):

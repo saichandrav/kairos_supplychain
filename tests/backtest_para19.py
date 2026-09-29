@@ -22,6 +22,8 @@ import math
 import random
 import statistics
 import sys
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
@@ -447,7 +449,7 @@ def plot(rp: Replay, uni: Universe, rules: Rules) -> None:
     ax.legend(loc="upper left", bbox_to_anchor=(0, -0.1), ncol=2, frameon=False, fontsize=8.5, labelcolor=INK)
     ax.text(0.5, 0.5, "SYNTHETIC COST DATA\npipeline check, not evidence", transform=ax.transAxes,
             ha="center", va="center", fontsize=26, color=INK_2, alpha=0.12, rotation=18, fontweight="bold")
-    fig.text(0.01, 0.01, "Source: FlowForge replay of A1–A3 on data/seed; API costs SYNTH (ingest/tradestat.py); "
+    fig.text(0.01, 0.01, "Source: Kairos replay of A1–A3 on data/seed; API costs SYNTH (ingest/tradestat.py); "
              "pre-2026 ceilings WPI back-cast (PROXY).", fontsize=7, color=INK_2)
     CHART_PNG.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.03, 1, 1))

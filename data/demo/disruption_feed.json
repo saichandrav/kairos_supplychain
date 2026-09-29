@@ -1,0 +1,35 @@
+{
+  "_note": "SYNTH demo signals for the Disruption Sensing monitor. Fictional; not real events.",
+  "signals": [
+    {
+      "signal_id": "DEMO-MAR-001",
+      "source": "demo_maritime_feed (SYNTH)",
+      "raw_text": "[DEMO] Armed attack reported on a container vessel near the Bab el-Mandeb strait. Several carriers are rerouting Europe-India services via the Cape of Good Hope; the route remains open but war-risk premiums have risen."
+    },
+    {
+      "signal_id": "DEMO-WX-002",
+      "source": "demo_weather_feed (SYNTH)",
+      "raw_text": "[DEMO] Severe cyclone warning for the Tamil Nadu coast. Vessel movements at Chennai port suspended for the next 4 days."
+    },
+    {
+      "signal_id": "DEMO-TAR-003",
+      "source": "demo_customs_feed (SYNTH)",
+      "raw_text": "[DEMO] Customs notice: import duty on bulk drug (API) consignments of Chinese origin to rise by 50% from next month."
+    },
+    {
+      "signal_id": "DEMO-PORT-004",
+      "source": "demo_port_feed (SYNTH)",
+      "raw_text": "[DEMO] Berth congestion at JNPT / Nhava Sheva: container vessels waiting 6 days on average."
+    },
+    {
+      "signal_id": "DEMO-MAL-005",
+      "source": "demo_maritime_feed (SYNTH)",
+      "raw_text": "[DEMO] Strait of Malacca closed to commercial traffic after a multi-vessel collision; closure expected to last 10 days."
+    },
+    {
+      "signal_id": "DEMO-NOISE-006",
+      "source": "demo_news_feed (SYNTH)",
+      "raw_text": "[DEMO] Local football league postpones weekend fixtures due to heavy rain."
+    }
+  ]
+}

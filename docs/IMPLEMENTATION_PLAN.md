@@ -1,5 +1,5 @@
-# FlowForge: MVP Implementation Plan
-SAP Hackfest 2026 · South & East Region Finale, SRM Chennai · Team PSGITECH169 (FlowForge)
+# Kairos: MVP Implementation Plan
+SAP Hackfest 2026 · South & East Region Finale, SRM Chennai · Kairos
 Theme: Resilient Supply Chains · Idea: predict pharmaceutical supply disruptions before they reach patients.
 
 > How to read this: every top-level section starts with `## §n`. Grep for it and read only what you need.
@@ -9,10 +9,10 @@ Theme: Resilient Supply Chains · Idea: predict pharmaceutical supply disruption
 
 ## §1 Problem, users and MVP scope
 
-**One-line pitch.** For a medicine under a DPCO price ceiling, the first sign of a shortage is not an empty shelf. It is the input cost rising towards a price the manufacturer is not allowed to raise. FlowForge watches that gap for every scheduled formulation a hospital depends on. It traces how concentrated the supply is, estimates when an exit becomes likely, proposes buffer stock or an alternate source that does not share the same weakness, and routes the proposal to the Chief Pharmacist for approval. Only then does it raise an SAP purchase requisition, and every step is audit-logged.
+**One-line pitch.** For a medicine under a DPCO price ceiling, the first sign of a shortage is not an empty shelf. It is the input cost rising towards a price the manufacturer is not allowed to raise. Kairos watches that gap for every scheduled formulation a hospital depends on. It traces how concentrated the supply is, estimates when an exit becomes likely, proposes buffer stock or an alternate source that does not share the same weakness, and routes the proposal to the Chief Pharmacist for approval. Only then does it raise an SAP purchase requisition, and every step is audit-logged.
 
 **Primary users** (validated in our interviews with the PSG Hospitals Director and the PSG Pharmacy Chief Pharmacist):
-| User | Needs from FlowForge | Where in the pharmacist's SAP SOP |
+| User | Needs from Kairos | Where in the pharmacist's SAP SOP |
 |---|---|---|
 | Chief Pharmacist | Early warning on vital (V) and NLEM items; recall trace; approve buffer PRs | Demand identification §6, ROL/ROQ §7, PR §8–10, Recall §25, Dashboard §31–32 |
 | Purchase Dept | A validated alternate source with a rate at or under the ceiling | Source determination §11, RFQ §12, PO §13 |
@@ -220,7 +220,7 @@ Every table gets `SOURCE, SOURCE_URL, FETCHED_AT, IS_PROXY` columns. Raw downloa
 
 ## §7 SAP tools: what we use and how (access given by the organisers + trials)
 
-| SAP asset | Access | Use in FlowForge | Day-1 check |
+| SAP asset | Access | Use in Kairos | Day-1 check |
 |---|---|---|---|
 | **SAP HANA Cloud** (Hackfest-DB, eu10, user `HACKFEST0xxx`) | organiser landscape; shared password | System of record for all tables, views, audit; Graph workspace; PAL forecasting via `hana-ml` | Connect with `hdbcli` from a laptop (port 443, TLS). Check `CREATE TABLE` rights, `CREATE GRAPH WORKSPACE`, and `SELECT * FROM SYS.AFL_AREAS` (PAL) |
 | **SAP HANA Database Explorer** | via HANA Cloud Central → Open | Run DDL, inspect data, show the SQL console to judges | — |
@@ -239,7 +239,7 @@ Every table gets `SOURCE, SOURCE_URL, FETCHED_AT, IS_PROXY` columns. Raw downloa
 
 ## §8 Repository layout
 ```
-CLAUDE.md                      .claude/skills/flowforge/SKILL.md   .claude/settings.json
+CLAUDE.md                      .claude/skills/kairos/SKILL.md   .claude/settings.json
 docs/ IMPLEMENTATION_PLAN.md  STATUS.md  DECISIONS.md  demo_script.md
 db/ schema.sql  views.sql  graph.sql  seed_small.sql
 ingest/ nppa.py nppa_para19.py nlem.py tradestat.py wpi.py nsq.py producers.py synth_hospital.py load_hana.py
@@ -364,14 +364,14 @@ B1, B2 and B3 can run in parallel as soon as S00 is merged.
 
 ### S00: Bootstrap (B2). Merge this first.
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §2, §3, §4, §7 and §8 of docs/IMPLEMENTATION_PLAN.md.
+Load the kairos skill. Read docs/STATUS.md, then only plan §2, §3, §4, §7 and §8 of docs/IMPLEMENTATION_PLAN.md.
 
 Stage S00 (Bootstrap). Build the shared foundation every other stage imports. Do NOT implement any agent logic.
 
 Create:
 1. requirements.txt: fastapi, uvicorn, pydantic>=2, python-dotenv, pyyaml, pandas, numpy, hdbcli, hana-ml, networkx, ortools, statsmodels, pdfplumber, openpyxl, requests, anthropic, pytest, httpx.
 2. config/env.sample: every env var in plan §7, with a one-line comment each and empty values. (Don't create or read .env.)
-3. agents/ctx.py: load settings from env (python-dotenv). get_db() returns a small wrapper with query(sql, params) -> pandas.DataFrame, execute(sql, params) and executemany(sql, rows). It works for DB_BACKEND=hana (hdbcli, TLS, port 443, default schema = HANA_SCHEMA) and DB_BACKEND=sqlite (file data/flowforge.sqlite). Use "?" placeholders for both. Never log credentials.
+3. agents/ctx.py: load settings from env (python-dotenv). get_db() returns a small wrapper with query(sql, params) -> pandas.DataFrame, execute(sql, params) and executemany(sql, rows). It works for DB_BACKEND=hana (hdbcli, TLS, port 443, default schema = HANA_SCHEMA) and DB_BACKEND=sqlite (file data/kairos.sqlite). Use "?" placeholders for both. Never log credentials.
 4. agents/contracts.py: pydantic v2 models for every input and output in plan §3: RiskSignal, DependencyProfile, Forecast, Scenario, CheckResult, Recommendation, DraftPR, ApprovalDecision (with checklist fields from the human-gate section), AuditEvent, RunContext. Enums: SignalBand (GREEN/AMBER/RED), CauseCode (the six codes in §3 A3), DataTag (REAL/PROXY/SYNTH), CheckStatus (PASS/WARN/FAIL), Overall (READY/NEEDS_CHANGES/BLOCKED), OptionType (BUFFER/ALT_SUPPLIER/THERAPEUTIC_ALT/REBALANCE). Add docstrings that point to the plan section.
 5. rules/weights.yaml, rules/dpco.yaml, rules/sop_controls.yaml: every constant from §4 and every check in the §3 A5 table. Store each as {value, source, verify: true|false}. agents/rules.py loads and validates them.
 6. tests/fixtures/: a tiny CSV set (3 formulations, 2 APIs, 4 producers, 12 months of API cost, 1 hospital material with stock and issues) so later stages can test without HANA. Tag the rows SYNTH.
@@ -385,7 +385,7 @@ Finish with §13.0 Git steps (stage id s00).
 
 ### S01: HANA schema, loader, Day-1 checks (B1)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §6, §7 and §11. Read agents/ctx.py and agents/contracts.py.
+Load the kairos skill. Read docs/STATUS.md, then only plan §6, §7 and §11. Read agents/ctx.py and agents/contracts.py.
 
 Stage S01. Create the database layer for both HANA and SQLite.
 
@@ -404,7 +404,7 @@ Finish with §13.0 Git steps (stage id s01).
 
 ### S02: NPPA + NLEM ingest, target list, Para-19 events (B1)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §1, §4.5 and §5. Read db/schema.sql (only the FF_REF_ tables).
+Load the kairos skill. Read docs/STATUS.md, then only plan §1, §4.5 and §5. Read db/schema.sql (only the FF_REF_ tables).
 
 Stage S02. Load REAL regulatory data. Never type a price or date by hand as if it were REAL. Every REAL row must come from a downloaded source file, with SOURCE_URL.
 
@@ -423,7 +423,7 @@ Finish with §13.0 Git steps (stage id s02).
 
 ### S03: Cost, origin, quality, producers, synthetic hospital (B1)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §4.1, §5 and §6. Read data/seed/targets.csv (head only) and db/schema.sql (only the tables you load).
+Load the kairos skill. Read docs/STATUS.md, then only plan §4.1, §5 and §6. Read data/seed/targets.csv (head only) and db/schema.sql (only the tables you load).
 
 Stage S03. Load the cost/origin/quality/producer data and generate the synthetic hospital data.
 
@@ -443,7 +443,7 @@ Finish with §13.0 Git steps (stage id s03).
 
 ### S04: A1 Margin Sentinel (B2)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §3 (A1) and §4.1. Read agents/contracts.py, agents/ctx.py and rules/weights.yaml.
+Load the kairos skill. Read docs/STATUS.md, then only plan §3 (A1) and §4.1. Read agents/contracts.py, agents/ctx.py and rules/weights.yaml.
 
 Stage S04. Implement agents/a1_margin_sentinel.py.
 - run(form_ids, ctx, api_cost_multiplier=1.0) -> list[RiskSignal]. Compute realisation, unit_cost, headroom_pct, 6–12-month OLS trend, months_to_breach and the band, exactly as in §4.1, with all constants from rules/*.yaml.
@@ -459,7 +459,7 @@ Finish with §13.0 Git steps (stage id s04).
 
 ### S05: A2 Dependency Mapper + graph (B2)
 ```text
-Load the flowforge skill. Read docs/STATUS.md (including the Day-1 Graph result), then only plan §3 (A2), §4.2 and the Graph paragraph of §6. Read agents/contracts.py.
+Load the kairos skill. Read docs/STATUS.md (including the Day-1 Graph result), then only plan §3 (A2), §4.2 and the Graph paragraph of §6. Read agents/contracts.py.
 
 Stage S05.
 1. ingest/build_graph.py: build FF_G_V (KSM, API, COUNTRY, MANUFACTURER, FORMULATION, MATERIAL, WARD) and FF_G_E from the reference and MM tables.
@@ -474,7 +474,7 @@ Finish with §13.0 Git steps (stage id s05).
 
 ### S06: A3 Shortage Forecaster (B2)
 ```text
-Load the flowforge skill. Read docs/STATUS.md (including the Day-1 PAL result), then only plan §3 (A3) and §4.3. Read agents/contracts.py.
+Load the kairos skill. Read docs/STATUS.md (including the Day-1 PAL result), then only plan §3 (A3) and §4.3. Read agents/contracts.py.
 
 Stage S06. Implement agents/a3_forecast.py.
 - Consumption forecast per hospital material: HANA PAL exponential smoothing via hana-ml if backend=hana and PAL is available; otherwise statsmodels ETS; if there are fewer than 6 months of history, use a 90-day moving average. Record which method was used.
@@ -490,7 +490,7 @@ Finish with §13.0 Git steps (stage id s06).
 
 ### S07: A4 Resilience Simulator + A5 Validator (B2)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §3 (A4, A5 and the human gate). Read agents/contracts.py, rules/dpco.yaml and rules/sop_controls.yaml.
+Load the kairos skill. Read docs/STATUS.md, then only plan §3 (A4, A5 and the human gate). Read agents/contracts.py, rules/dpco.yaml and rules/sop_controls.yaml.
 
 Stage S07.
 1. agents/a4_resilience.py: generate the options BUFFER, ALT_SUPPLIER, THERAPEUTIC_ALT (always flagged for clinical review) and REBALANCE (between the 5 locations). Size quantities with OR-Tools CP-SAT (or PuLP) to minimise cost + stock-out penalty, subject to budget, storage/cold-chain capacity, expiry (qty ≤ forecast consumption over the remaining shelf life − margin) and MOQ. Correlated-risk check: use a2_dependency.shares_upstream to reject or penalise an alternate that shares the API origin/KSM, and set correlated_risk_flag with the reason. Return ranked Scenarios and write them to FF_AG_SCENARIO.
@@ -503,7 +503,7 @@ Finish with §13.0 Git steps (stage id s07).
 
 ### S08: A6 Audit/Action + orchestrator + human gate (B3)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §3 (A6 and the human gate) and §7 (API Hub row). Read agents/contracts.py and agents/ctx.py.
+Load the kairos skill. Read docs/STATUS.md, then only plan §3 (A6 and the human gate) and §7 (API Hub row). Read agents/contracts.py and agents/ctx.py.
 
 Stage S08. If A1–A5 aren't merged yet, write minimal stubs that return valid contract objects from the fixtures. Put them in agents/_stubs.py; the orchestrator picks the real module when it exists.
 1. agents/a6_audit.py:
@@ -521,7 +521,7 @@ Finish with §13.0 Git steps (stage id s08).
 
 ### S09: FastAPI + BTP Cloud Foundry deploy (B3)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §2, §7 and §8. Read agents/orchestrator.py (signatures only).
+Load the kairos skill. Read docs/STATUS.md, then only plan §2, §7 and §8. Read agents/orchestrator.py (signatures only).
 
 Stage S09.
 1. api/main.py (FastAPI): GET /health, GET /watchlist, GET /molecule/{id} (signal + dependency + forecast + scenarios + checks + graph snapshot as nodes/edges + data tags), POST /run {form_ids, shock}, POST /scenario/shock {multiplier}, GET /approvals/pending, POST /approval {rec_id, decision, checklist, edits, reason, user}, GET /audit/{run_id} (+ chain status), GET /audit/{run_id}/report (HTML), GET /recall/{alert_id}. Every route except /health requires the X-API-Key header = APP_API_KEY. Enable CORS for SAP Build Apps origins. Response models come from contracts.py.
@@ -536,7 +536,7 @@ Finish with §13.0 Git steps (stage id s09).
 
 ### S10: SAP Build Apps guide + fallback UI (B3)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §3 (human gate), §7 and §10. Read the route list in api/main.py.
+Load the kairos skill. Read docs/STATUS.md, then only plan §3 (human gate), §7 and §10. Read the route list in api/main.py.
 
 Stage S10. SAP Build Apps is built by clicking in the browser, so produce (a) a precise build guide and (b) a working fallback UI on the same API.
 1. docs/buildapps_guide.md, step by step:
@@ -554,7 +554,7 @@ Finish with §13.0 Git steps (stage id s10).
 
 ### S11: LLM explanation with number check (B3)
 ```text
-Load the flowforge skill (especially §5 guardrails). Read docs/STATUS.md, then only plan §3 (A3 cause_facts). Read agents/contracts.py.
+Load the kairos skill (especially §5 guardrails). Read docs/STATUS.md, then only plan §3 (A3 cause_facts). Read agents/contracts.py.
 
 Stage S11. Implement agents/explain.py.
 - explain(forecast, dependency, recommendation) -> {text, used_llm, fallback_reason}.
@@ -571,7 +571,7 @@ Finish with §13.0 Git steps (stage id s11).
 
 ### S12: Para-19 backtest + deck results (B2 + P2)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §4.3 and §4.5. Read data/seed/para19_events.csv.
+Load the kairos skill. Read docs/STATUS.md, then only plan §4.3 and §4.5. Read data/seed/para19_events.csv.
 
 Stage S12. Create tests/backtest_para19.py (a script, not a unit test):
 - For each month in the window, run A1→A3 using ONLY data dated before that month (no look-ahead; assert it).
@@ -586,7 +586,7 @@ Finish with §13.0 Git steps (stage id s12).
 
 ### S13: Integration on real data + demo hardening (Bhavesh, with all)
 ```text
-Load the flowforge skill. Read docs/STATUS.md, then only plan §10 and §11.
+Load the kairos skill. Read docs/STATUS.md, then only plan §10 and §11.
 
 Stage S13. Make the demo bulletproof.
 1. scripts/demo_reset.py: rebuild FF_ objects (--reset), load seeds, run the baseline for all targets. Must finish in under 5 minutes on HANA and under 1 minute on SQLite.
@@ -601,7 +601,7 @@ Finish with §13.0 Git steps (stage id s13).
 
 ### 13.R: Reviewer prompt (Bhavesh, for each PR)
 ```text
-Load the flowforge skill. Review PR #<N> in this repo. Do not merge it.
+Load the kairos skill. Review PR #<N> in this repo. Do not merge it.
 
 1. gh pr view <N> and gh pr diff <N>. Identify the stage ID and read that stage's prompt in plan §13, plus the plan sections it cites.
 2. gh pr checkout <N>, then run pytest -q and the stage's Verify command.

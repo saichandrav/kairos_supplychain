@@ -1,4 +1,4 @@
--- FlowForge views (plan §6). SAP HANA Cloud dialect.
+-- Kairos views (plan §6). SAP HANA Cloud dialect.
 -- db/views_sqlite.sql is GENERATED from this file:  python -m ingest.load_hana --gen-sqlite
 --
 -- Portability rules (the generator rewrites only these HANA functions):

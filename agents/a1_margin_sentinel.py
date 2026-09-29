@@ -362,7 +362,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     db = _fixture_db() if a.fixtures else get_db()
     if not a.fixtures and db.backend == "sqlite" and not _has_reference(db):
-        print("[a1] no reference data in data/flowforge.sqlite; using SYNTH test fixtures in memory")
+        print("[a1] no reference data in data/kairos.sqlite; using SYNTH test fixtures in memory")
         db.close()
         db = _fixture_db()
     run_ctx = RunContext(run_id=f"a1-cli-{uuid.uuid4().hex[:8]}", dry_run=a.dry_run)

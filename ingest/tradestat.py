@@ -39,7 +39,7 @@ FIRST_MONTH, LAST_MONTH = date(2019, 1, 1), date(2026, 9, 1)   # cost history (S
 ORIGIN_MONTHS = 36
 HEADROOM_RANGE = (0.12, 0.40)
 ORIGIN_COUNTRIES = ("CN", "IT", "DE", "US", "JP", "KR", "ES", "CH")
-SYNTH_SOURCE = "FlowForge synthetic (TradeStat not downloaded; see ingest/tradestat.py)"
+SYNTH_SOURCE = "Kairos synthetic (TradeStat not downloaded; see ingest/tradestat.py)"
 FETCHED_AT = "2026-09-27T00:00:00Z"
 
 _QTY_TO_KG = {"KGS": 1.0, "KG": 1.0, "TON": 1000.0, "MTS": 1000.0, "MT": 1000.0, "GMS": 0.001, "G": 0.001}

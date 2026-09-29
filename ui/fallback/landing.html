@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos | Catching Medicine Shortages Before They Happen</title>
+<link rel="icon" type="image/png" href="/logo.png">
+<meta name="description" content="Kairos is an early-warning system for essential medicines whose price is fixed by law. It watches costs and supply chains, flags the ones quietly at risk, and always leaves the final call to a human pharmacist.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:              #F5F4F0;
+    --surface:         #FFFFFF;
+    --surface-raised:  #FAFAF8;
+    --border:          #D9D7D1;
+    --border-subtle:   #ECEAE5;
+    --text:            #1A1917;
+    --text-2:          #5C5A56;
+    --text-3:          #8C8A85;
+    --accent:          #1B5E52;
+    --accent-hover:    #164D44;
+    --accent-subtle:   #EAF2F0;
+    --accent-border:   #A8C9C3;
+    --red:             #B91C1C;
+    --amber:           #B45309;
+    --amber-bg:        #FFFBEB;
+    --amber-border:    #FDE68A;
+    --green:           #15803D;
+    --font: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "DM Mono", "Cascadia Code", Consolas, monospace;
+    --r-md: 8px;
+    --r-lg: 14px;
+  }
+  * , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  img { max-width: 100%; display: block; }
+
+  /* ---------------- Top nav ---------------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1.5rem;
+    background: rgba(245, 244, 240, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 0.85rem; }
+  .hamburger {
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+    width: 38px; height: 38px; padding: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+    cursor: pointer; flex-shrink: 0;
+  }
+  .hamburger span { display: block; height: 2px; width: 100%; background: var(--text); border-radius: 2px; transition: transform 0.2s, opacity 0.2s; }
+  .hamburger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .hamburger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .hamburger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+  .brand { display: flex; align-items: center; gap: 0.55rem; text-decoration: none; }
+  .brand img { height: 28px; width: auto; max-width: 120px; object-fit: contain; }
+  .brand-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; }
+  .brand-tag { display: none; }
+  @media (min-width: 640px) {
+    .brand-tag { display: inline; font-size: 0.72rem; color: var(--text-3); border-left: 1px solid var(--border); padding-left: 0.6rem; margin-left: 0.1rem; }
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1.05rem; border-radius: var(--r-md);
+    font-size: 0.85rem; font-weight: 600; text-decoration: none;
+    border: 1px solid transparent; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------------- Slide-out drawer (hamburger menu) ---------------- */
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(20, 20, 18, 0.45);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 45;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; left: 0; height: 100%; width: min(300px, 82vw);
+    background: var(--surface); border-right: 1px solid var(--border);
+    transform: translateX(-100%); transition: transform 0.25s ease; z-index: 46;
+    display: flex; flex-direction: column; padding: 1.25rem 1.35rem;
+    box-shadow: 12px 0 32px rgba(0,0,0,0.08);
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; }
+  .drawer-close {
+    width: 34px; height: 34px; border-radius: var(--r-md); border: 1px solid var(--border);
+    background: var(--surface-raised); cursor: pointer; font-size: 1rem; line-height: 1;
+  }
+  .drawer nav { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 1.5rem; }
+  .drawer nav a {
+    padding: 0.75rem 0.6rem; border-radius: var(--r-md); text-decoration: none;
+    font-weight: 600; font-size: 0.95rem; color: var(--text);
+  }
+  .drawer nav a:hover { background: var(--accent-subtle); color: var(--accent); }
+  .drawer .btn { justify-content: center; }
+  .drawer-foot { margin-top: auto; font-size: 0.72rem; color: var(--text-3); }
+
+  /* ---------------- Layout helpers ---------------- */
+  section { padding: 4.5rem 1.5rem; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-subtle); border: 1px solid var(--accent-border);
+    padding: 0.3rem 0.7rem; border-radius: 100px; margin-bottom: 1.1rem;
+  }
+  h1 { font-size: clamp(1.9rem, 4.4vw, 3.1rem); font-weight: 700; letter-spacing: -0.015em; line-height: 1.12; }
+
+  /* ---------------- Hero ---------------- */
+  .hero { padding-top: 5rem; padding-bottom: 3.5rem; text-align: center; }
+  .hero p.lead {
+    max-width: 660px; margin: 1.15rem auto 2rem; font-size: 1.08rem; color: var(--text-2);
+  }
+  .hero-ctas { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2.75rem; }
+  .hero-ctas .btn { padding: 0.75rem 1.4rem; font-size: 0.92rem; }
+  .hero-strip {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem;
+  }
+  .hero-strip span {
+    font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-3);
+    border: 1px solid var(--border); background: var(--surface); border-radius: 100px; padding: 0.3rem 0.75rem;
+  }
+
+  /* ---------------- Footer ---------------- */
+  footer { background: var(--surface); border-top: 1px solid var(--border); padding: 3rem 1.5rem 2.2rem; }
+  .foot-grid { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; }
+  .foot-brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; }
+  .foot-brand img { width: 26px; height: 26px; border-radius: 6px; }
+  .badge-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tech-badge {
+    font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-2);
+    border: 1px solid var(--border); border-radius: 100px; padding: 0.3rem 0.7rem; background: var(--surface-raised);
+  }
+  .foot-bottom { font-size: 0.75rem; color: var(--text-3); border-top: 1px solid var(--border-subtle); padding-top: 1.2rem; }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
+        <span></span><span></span><span></span>
+      </button>
+      <a class="brand" href="#top">
+        <img src="/logo.png" alt="Kairos logo">
+      </a>
+      <span class="brand-tag">Anticipate disruptions. Act at the right moment.</span>
+    </div>
+    <a class="btn btn-primary" href="/dashboard">Open Dashboard</a>
+  </header>
+
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <aside class="drawer" id="navDrawer" aria-hidden="true">
+    <div class="drawer-head">
+      <a class="brand" href="#top">
+        <img src="/logo.png" alt="Kairos logo">
+      </a>
+      <button class="drawer-close" id="drawerClose" aria-label="Close menu">✕</button>
+    </div>
+    <nav>
+      <a href="#team">About Kairos</a>
+    </nav>
+    <a class="btn btn-primary" href="/dashboard">Open Dashboard</a>
+    <div class="drawer-foot">Kairos</div>
+  </aside>
+
+  <main id="top">
+
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="wrap">
+        <div class="eyebrow">Kairos</div>
+        <h1>Catch a medicine shortage<br>before it ever reaches the shelf.</h1>
+        <p class="lead">
+          Some life-saving medicines have a price fixed by law, to keep them affordable. But the cost of making
+          them keeps changing. When it stops being worth it for a manufacturer, they can quietly cut back &mdash;
+          and nobody sounds an alarm until the medicine is already hard to find. Kairos is that alarm, ringing
+          months in advance instead of after the fact.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="/dashboard">See it in action &rarr;</a>
+        </div>
+        <div class="hero-strip">
+          <span>Deterministic rules, not guesses</span>
+          <span>Every action needs a human's sign-off</span>
+          <span>Nothing edited after the fact</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer id="team">
+    <div class="wrap foot-grid">
+      <div>
+        <div class="foot-brand"><img src="/logo.png" alt="Kairos logo">Kairos</div>
+        <p style="color:var(--text-2);font-size:0.85rem;max-width:320px;margin-top:0.5rem;">
+          Early warning and human-gated resilience for price-controlled medicines.
+        </p>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--text-3);margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.05em;">Built on</div>
+        <div class="badge-row">
+          <span class="tech-badge">SAP HANA Cloud</span>
+          <span class="tech-badge">SAP BTP</span>
+          <span class="tech-badge">SAP Build</span>
+        </div>
+      </div>
+      <div>
+        <a class="btn btn-primary" href="/dashboard">Open the live dashboard &rarr;</a>
+      </div>
+    </div>
+    <div class="wrap foot-bottom">
+      Kairos. This page describes a hackathon prototype; figures inside the dashboard are labelled as real, proxy
+      or synthetic data throughout.
+    </div>
+  </footer>
+
+  <script>
+    const hamburgerBtn = document.getElementById("hamburgerBtn");
+    const drawer = document.getElementById("navDrawer");
+    const overlay = document.getElementById("drawerOverlay");
+    const closeBtn = document.getElementById("drawerClose");
+
+    function openDrawer() {
+      drawer.classList.add("open");
+      overlay.classList.add("open");
+      drawer.setAttribute("aria-hidden", "false");
+      hamburgerBtn.setAttribute("aria-expanded", "true");
+    }
+    function closeDrawer() {
+      drawer.classList.remove("open");
+      overlay.classList.remove("open");
+      drawer.setAttribute("aria-hidden", "true");
+      hamburgerBtn.setAttribute("aria-expanded", "false");
+    }
+    hamburgerBtn.addEventListener("click", () => {
+      drawer.classList.contains("open") ? closeDrawer() : openDrawer();
+    });
+    overlay.addEventListener("click", closeDrawer);
+    closeBtn.addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+    drawer.querySelectorAll("a").forEach(a => a.addEventListener("click", closeDrawer));
+  </script>
+</body>
+</html>

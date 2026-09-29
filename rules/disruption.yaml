@@ -1,0 +1,231 @@
+# Disruption response constants: Disruption Sensing, Scenario Planning, Rerouting & Logistics,
+# Inventory Rebalancing, Compliance & Audit, and the human-in-the-loop thresholds.
+# Every leaf is {value, source, verify}. verify: true = planning assumption; confirm with the
+# hospital SOP / freight forwarder before the finale.
+version: "1.0.0"
+
+sensing:
+  escalate_confidence_below:
+    value: 0.6
+    source: "Assumption: an assessment below this confidence is ambiguous and goes to a human analyst"
+    verify: true
+  plan_min_severity:
+    value: "MEDIUM"
+    source: "Assumption: LOW signals are logged for monitoring; MEDIUM and above start scenario planning"
+    verify: true
+  closure_severity:
+    value: "CRITICAL"
+    source: "Assumption: a CRITICAL maritime/geopolitical signal closes the matched chokepoint; HIGH or MEDIUM = open with elevated security risk"
+    verify: true
+
+scenario:
+  default_duration_days:
+    value: 30
+    source: "Assumption: disruption duration when the signal or what-if gives none"
+    verify: true
+  lead_time_passthrough:
+    value: 1.0
+    source: "Worst case: an upstream API sea delay reaches the hospital delivery date in full (manufacturer holds no API buffer)"
+    verify: true
+  exposure_min_share:
+    value: 0.05
+    source: "Assumption: an origin counts toward exposure only if it supplies at least this share of the API (latest month)"
+    verify: true
+  risky_route_hold_days:
+    value: 3
+    source: "Assumption: war-risk / convoy holds on an open route with an elevated security alert"
+    verify: true
+  port_divert_days:
+    value: 5
+    source: "Assumption: extra days to discharge at an alternate Indian port and truck inland"
+    verify: true
+  congestion_delay_days:
+    value: 7
+    source: "Assumption: berthing delay at a congested Indian port"
+    verify: true
+  unrouted_reroute_delay_days:
+    value: 4
+    source: "Assumption: extra transit via an unmapped alternate strait (e.g. Sunda/Lombok for Malacca)"
+    verify: true
+  buffer_lead_days:
+    value: 7
+    source: "Assumption: emergency local order lead time from a domestic distributor's stock"
+    verify: true
+  buffer_spot_premium:
+    value: 0.15
+    source: "Assumption: spot-market premium over the last PO rate for an emergency domestic buffer order"
+    verify: true
+  domestic_stock_availability:
+    value: 0.7
+    source: "Assumption: share of an emergency buffer order that domestic distributors can fill during a disruption"
+    verify: true
+  air_transit_days:
+    value: 4
+    source: "Assumption: air freight door-to-door incl. customs for an API consignment"
+    verify: true
+  tariff_exit_loss_share:
+    RED:
+      value: 0.5
+      source: "Assumption: share of supply at risk when a tariff pushes A1 margin headroom to RED"
+      verify: true
+    AMBER:
+      value: 0.2
+      source: "Assumption: share of supply at risk when a tariff pushes A1 margin headroom to AMBER"
+      verify: true
+    GREEN:
+      value: 0.0
+      source: "Assumption: no supply at risk while headroom stays GREEN"
+      verify: true
+  default_tariff_pct:
+    value: 25
+    source: "Assumption: tariff uplift when a tariff signal states no percentage"
+    verify: true
+  security_risk_weight:
+    value: 0.3
+    source: "Assumption: residual-risk add-on (x origin share) for shipping through a chokepoint with an elevated security alert"
+    verify: true
+  stockout_days_full_risk:
+    value: 7
+    source: "Assumption: this many projected stock-out days of a Vital medicine = maximum residual risk (1.0)"
+    verify: true
+  cost_ref_inr:
+    value: 25000
+    source: "Assumption: cost at which the normalised cost term reaches 0.5 (cost / (cost + ref))"
+    verify: true
+  time_ref_days:
+    value: 14
+    source: "Assumption: time-to-effect at which the normalised time term reaches 0.5 (t / (t + ref))"
+    verify: true
+  weights:
+    cost:
+      value: 0.25
+      source: "Assumption: strategy score weight on normalised cost (lower score is better)"
+      verify: true
+    time:
+      value: 0.15
+      source: "Assumption: strategy score weight on normalised time-to-effect"
+      verify: true
+    risk:
+      value: 0.6
+      source: "Assumption: strategy score weight on VED-weighted residual stock-out risk"
+      verify: true
+
+logistics:
+  sea_freight_pct_of_value:
+    value: 0.03
+    source: "Assumption: ocean freight as a share of consignment value on the normal lane"
+    verify: true
+  reroute_surcharge_pct_per_day:
+    value: 0.002
+    source: "Assumption: extra freight + bunker per extra transit day, share of consignment value"
+    verify: true
+  war_risk_surcharge_pct:
+    value: 0.01
+    source: "Assumption: war-risk insurance premium on a route with an elevated security alert"
+    verify: true
+  security_loss_probability:
+    value: 0.05
+    source: "Assumption: expected share of consignment value lost or held on a route with an elevated security alert (routing objective only)"
+    verify: true
+  air_freight_pct_of_value:
+    value: 0.15
+    source: "Assumption: air freight as a share of consignment value"
+    verify: true
+  air_max_consignment_value_inr:
+    value: 300000
+    source: "Assumption: consignments above this value are not air-freighted"
+    verify: true
+  late_penalty_multiplier:
+    value: 5
+    source: "Assumption: a unit that arrives after projected stock-out costs this many times its value in the routing objective"
+    verify: true
+  carriers:
+    value:
+      - {id: OCEAN-A, mode: SEA, capacity: 6, cost_factor: 1.0, reliability: 0.92, avoids_security_risk: true}
+      - {id: OCEAN-B, mode: SEA, capacity: 6, cost_factor: 0.9, reliability: 0.85, avoids_security_risk: false}
+      - {id: AIR-X, mode: AIR, capacity: 3, cost_factor: 1.0, reliability: 0.97, avoids_security_risk: true}
+    source: "SYNTH demo carrier panel with generic IDs; replace with the forwarder rate card and capacities"
+    verify: true
+
+live_sensing:
+  wave_height_risky_m:
+    value: 3.0
+    source: "Assumption: significant wave height (Open-Meteo Marine) above which transiting a chokepoint is elevated risk"
+    verify: true
+  wave_height_blocked_m:
+    value: 5.0
+    source: "Assumption: significant wave height above which a chokepoint is treated as impassable"
+    verify: true
+  wind_speed_risky_kmh:
+    value: 55.0
+    source: "Assumption: sustained wind speed (Open-Meteo, ~Beaufort 7) at a chokepoint treated as elevated risk"
+    verify: true
+  news_page_size:
+    value: 20
+    source: "Assumption: articles requested per live NewsAPI.org scan"
+    verify: true
+
+inventory:
+  service_z:
+    V:
+      value: 2.33
+      source: "Standard normal z for a 99% cycle service level (Vital)"
+      verify: false
+    E:
+      value: 1.65
+      source: "Standard normal z for a 95% cycle service level (Essential)"
+      verify: false
+    D:
+      value: 1.28
+      source: "Standard normal z for a 90% cycle service level (Desirable)"
+      verify: false
+  delay_sd_factor:
+    value: 0.5
+    source: "Assumption: lead-time standard deviation = this x the disruption delay (delay length is uncertain)"
+    verify: true
+  location_min_cover_days:
+    value: 7
+    source: "Assumption: an issuing storage location below this many days of cover receives stock"
+    verify: true
+  location_target_cover_days:
+    value: 14
+    source: "Assumption: a receiving storage location is topped up to this many days of cover"
+    verify: true
+  max_gate_options_per_formulation:
+    value: 2
+    source: "Assumption: only the best N ranked purchase options per formulation go to the Chief Pharmacist gate"
+    verify: true
+  substitute_max_exposed_share:
+    value: 0.5
+    source: "Assumption: a therapeutic substitute whose API depends this much on the disrupted origins is rejected"
+    verify: true
+  demand_window_days:
+    value: 90
+    source: "Daily issue history window for demand mean and standard deviation (matches FF_V_DAILY_ISSUE_90D)"
+    verify: false
+  donor_floor_cover_days:
+    value: 14
+    source: "Assumption: a storage location never gives stock below this many days of its own cover"
+    verify: true
+  auto_transfer_max_units:
+    value: 2000
+    source: "Assumption: internal transfers up to this quantity are released without a human"
+    verify: true
+
+governance:
+  human_cost_threshold_inr:
+    value: 25000
+    source: "Placeholder: any single autonomous action costing more than this pauses for a human"
+    verify: true
+  auto_run_budget_inr:
+    value: 100000
+    source: "Placeholder: total autonomous spend allowed per disruption response run"
+    verify: true
+  sanctioned_countries:
+    value: [KP]
+    source: "UN Security Council sanctions regimes (DPRK); verify the current list with DGFT / MEA before use"
+    verify: true
+  approver_blocklist_prefixes:
+    value: ["agent", "system", "llm", "ai", "a1", "a2", "a3", "a4", "a5", "a6", "dx"]
+    source: "Guardrail: an agent identity can never resolve a human decision"
+    verify: false

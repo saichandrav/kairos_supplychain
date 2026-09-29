@@ -1,0 +1,233 @@
+# Sea lanes for pharmaceutical API imports to Indian ports (reference data, not scoring constants).
+# The first route listed for an origin is its primary lane; later routes for the same origin are alternates.
+# Transit days are indicative planning estimates (IS_PROXY = PROXY); verify against carrier schedules.
+# Used by Disruption Sensing (place matching), Scenario Planning (lane delays) and Logistics (rerouting).
+
+routes:
+  - origin: CN
+    origin_name: China
+    origin_ports: [Shanghai, Ningbo, Tianjin, Qingdao]
+    destination_ports: [JNPT/Nhava Sheva, Mumbai, Chennai, Vizag]
+    chokepoints: [Strait of Malacca]
+    transit_days_normal: 14
+    notes: "Primary API source lane via the Strait of Malacca"
+
+  - origin: CN
+    origin_name: China
+    origin_ports: [Shanghai, Ningbo]
+    destination_ports: [Chennai, Vizag]
+    chokepoints: [Lombok Strait]
+    transit_days_normal: 18
+    notes: "Alternate lane avoiding Malacca via Lombok Strait"
+
+  - origin: DE
+    origin_name: Germany
+    origin_ports: [Hamburg, Bremerhaven]
+    destination_ports: [JNPT/Nhava Sheva, Mumbai]
+    chokepoints: [English Channel, Strait of Gibraltar, Suez Canal, Bab el-Mandeb]
+    transit_days_normal: 22
+    transit_days_rerouted: 35
+    reroute_via: Cape of Good Hope
+    notes: "European pharma corridor; Cape reroute adds ~13 days"
+
+  - origin: CH
+    origin_name: Switzerland
+    origin_ports: [Basel (via Rotterdam/Antwerp)]
+    destination_ports: [JNPT/Nhava Sheva, Mumbai]
+    chokepoints: [English Channel, Strait of Gibraltar, Suez Canal, Bab el-Mandeb]
+    transit_days_normal: 24
+    transit_days_rerouted: 37
+    reroute_via: Cape of Good Hope
+    notes: "Swiss specialty pharma via North Sea ports"
+
+  - origin: IT
+    origin_name: Italy
+    origin_ports: [Genoa, Trieste]
+    destination_ports: [JNPT/Nhava Sheva, Mumbai, Chennai]
+    chokepoints: [Suez Canal, Bab el-Mandeb]
+    transit_days_normal: 16
+    transit_days_rerouted: 32
+    reroute_via: Cape of Good Hope
+    notes: "Mediterranean pharma route"
+
+  - origin: ES
+    origin_name: Spain
+    origin_ports: [Barcelona, Valencia]
+    destination_ports: [JNPT/Nhava Sheva, Mumbai]
+    chokepoints: [Strait of Gibraltar, Suez Canal, Bab el-Mandeb]
+    transit_days_normal: 18
+    transit_days_rerouted: 33
+    reroute_via: Cape of Good Hope
+
+  - origin: US
+    origin_name: United States
+    origin_ports: [Newark, Savannah]
+    destination_ports: [JNPT/Nhava Sheva, Mumbai]
+    chokepoints: [Strait of Gibraltar, Suez Canal, Bab el-Mandeb]
+    transit_days_normal: 25
+    transit_days_rerouted: 38
+    reroute_via: Cape of Good Hope
+    notes: "US East Coast via Suez"
+
+  - origin: US
+    origin_name: United States
+    origin_ports: [Newark, Houston, Los Angeles]
+    destination_ports: [JNPT/Nhava Sheva, Chennai]
+    chokepoints: [Panama Canal, Strait of Malacca]
+    transit_days_normal: 30
+    notes: "Trans-Pacific alternate via Panama"
+
+  - origin: JP
+    origin_name: Japan
+    origin_ports: [Tokyo, Kobe, Yokohama]
+    destination_ports: [Chennai, Vizag, JNPT/Nhava Sheva]
+    chokepoints: [Strait of Malacca]
+    transit_days_normal: 16
+    notes: "Japanese specialty API corridor"
+
+  - origin: KR
+    origin_name: South Korea
+    origin_ports: [Busan, Incheon]
+    destination_ports: [Chennai, JNPT/Nhava Sheva]
+    chokepoints: [Strait of Malacca]
+    transit_days_normal: 14
+
+# Chokepoints: aliases drive text matching; bypass_* is used when a closure has no route-level reroute.
+# coords is [lon, lat] (IS_PROXY, representative point) - used only to pull live marine weather for that
+# strait/canal (agents/live_sensing.py); not for navigation.
+chokepoints:
+  Suez Canal:
+    region: Egypt
+    countries: [EG]
+    aliases: [suez]
+    risk_factors: [geopolitical, infrastructure, congestion]
+    impact: "Connects Mediterranean to Red Sea; closure reroutes via Cape (+12-16 days)"
+    bypass_via: Cape of Good Hope
+    coords: [32.35, 30.6]
+  Bab el-Mandeb:
+    region: Yemen / Djibouti
+    countries: [YE, DJ, ER]
+    aliases: [bab el-mandeb, bab-el-mandeb, bab el mandeb, bab al-mandab, red sea, gulf of aden]
+    risk_factors: [maritime_security, geopolitical]
+    impact: "Red Sea gateway; attacks on shipping force Cape rerouting"
+    bypass_via: Cape of Good Hope
+    coords: [43.4, 12.5]
+  Strait of Malacca:
+    region: Malaysia / Singapore / Indonesia
+    countries: [MY, SG, ID]
+    aliases: [malacca, singapore strait]
+    risk_factors: [congestion, piracy, weather]
+    impact: "Primary Asia-India corridor"
+    bypass_via: Lombok Strait
+    bypass_extra_days: 4
+    coords: [103.5, 1.42]
+  Lombok Strait:
+    region: Indonesia
+    countries: [ID]
+    aliases: [lombok, sunda strait]
+    risk_factors: [weather]
+    impact: "Deep-water alternate to Malacca"
+    coords: [115.75, -8.5]
+  Strait of Hormuz:
+    region: Iran / Oman / UAE
+    countries: [IR, OM, AE]
+    aliases: [hormuz, persian gulf]
+    risk_factors: [geopolitical, maritime_security]
+    impact: "Persian Gulf gateway; no mapped API lane transits it, but bunker fuel costs rise on closure"
+    coords: [56.3, 26.5]
+  Panama Canal:
+    region: Panama
+    countries: [PA]
+    aliases: [panama]
+    risk_factors: [drought, congestion, infrastructure]
+    impact: "US-Asia route; drought restrictions limit vessel drafts"
+    coords: [-79.68, 9.08]
+  Strait of Gibraltar:
+    region: Spain / Morocco
+    countries: [ES, MA]
+    aliases: [gibraltar]
+    risk_factors: [congestion, weather]
+    impact: "Atlantic-Mediterranean gateway for European routes"
+    coords: [-5.6, 35.95]
+  English Channel:
+    region: UK / France
+    countries: [GB, FR]
+    aliases: [english channel, dover strait]
+    risk_factors: [weather, congestion]
+    impact: "North European port access"
+    coords: [1.4, 50.9]
+  Cape of Good Hope:
+    region: South Africa
+    countries: [ZA]
+    aliases: [cape of good hope]
+    risk_factors: [weather, rough seas]
+    impact: "Reroute path for Suez / Red Sea closures; adds 12-16 days"
+    coords: [18.47, -34.35]
+
+# Indian destination ports
+indian_ports:
+  JNPT/Nhava Sheva:
+    city: Navi Mumbai
+    state: Maharashtra
+    aliases: [jnpt, nhava sheva, jawaharlal nehru port]
+    role: "India's largest container port; primary pharma import gateway"
+  Mumbai:
+    city: Mumbai
+    state: Maharashtra
+    aliases: [mumbai port, mumbai]
+    role: "Bulk cargo and pharmaceutical imports"
+  Chennai:
+    city: Chennai
+    state: Tamil Nadu
+    aliases: [chennai]
+    role: "East coast pharma hub; serves southern India hospitals"
+  Vizag:
+    city: Visakhapatnam
+    state: Andhra Pradesh
+    aliases: [vizag, visakhapatnam]
+    role: "Bulk drug import and pharma SEZ cluster"
+  Kandla:
+    city: Gandhidham
+    state: Gujarat
+    aliases: [kandla, deendayal port]
+    role: "Western India bulk imports"
+
+# Origin country names used for text matching
+countries:
+  CN: [china, chinese]
+  DE: [germany, german]
+  CH: [switzerland, swiss]
+  IT: [italy, italian]
+  ES: [spain, spanish]
+  US: [united states, u.s., usa, american]
+  JP: [japan, japanese]
+  KR: [south korea, korea, korean]
+
+# Port coordinates for map display and searoute geometry ([lon, lat], WGS84).
+# Approximate port-city positions (IS_PROXY); good enough for route visualisation, not for navigation.
+port_coordinates:
+  Shanghai: [121.4737, 31.2304]
+  Ningbo: [121.5440, 29.8683]
+  Tianjin: [117.7008, 39.0842]
+  Qingdao: [120.3826, 36.0671]
+  Hamburg: [9.9937, 53.5511]
+  Bremerhaven: [8.5809, 53.5396]
+  "Basel (via Rotterdam/Antwerp)": [4.4777, 51.9225]
+  Genoa: [8.9463, 44.4056]
+  Trieste: [13.7768, 45.6495]
+  Barcelona: [2.1734, 41.3851]
+  Valencia: [-0.3763, 39.4699]
+  Newark: [-74.1724, 40.7357]
+  Savannah: [-81.0998, 32.0809]
+  Houston: [-95.0664, 29.7372]
+  Los Angeles: [-118.2669, 33.7288]
+  Tokyo: [139.7454, 35.6074]
+  Kobe: [135.1955, 34.6801]
+  Yokohama: [139.6503, 35.4437]
+  Busan: [129.0756, 35.0951]
+  Incheon: [126.5312, 37.4602]
+  JNPT/Nhava Sheva: [72.9483, 18.9490]
+  Mumbai: [72.8479, 18.9430]
+  Chennai: [80.2963, 13.0899]
+  Vizag: [83.2977, 17.6935]
+  Kandla: [70.2167, 23.0333]

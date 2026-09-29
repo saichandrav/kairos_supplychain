@@ -220,9 +220,28 @@ def create_objects(db: Db) -> tuple[int, int]:
         name = _check_name(_CREATE_NAME.match(stmt).group(2))
         if existing.get(name) == "view":
             db.execute(f'DROP VIEW "{name}"')
+    widen_columns(db)
     for stmt in view_stmts:
         db.execute(stmt)
     return n_tables, len(view_stmts)
+
+
+def widen_columns(db: Db) -> list[str]:
+    """HANA: grow existing (N)VARCHAR columns to their db/schema.sql length. Never shrinks; SQLite needs nothing."""
+    if db.backend != "hana":
+        return []
+    live = db.query("SELECT TABLE_NAME, COLUMN_NAME, LENGTH FROM SYS.TABLE_COLUMNS WHERE SCHEMA_NAME = CURRENT_SCHEMA "
+                    "AND TABLE_NAME LIKE 'FF\\_%' ESCAPE '\\'")
+    have = {(str(t), str(c)): int(n) for t, c, n in live.itertuples(index=False)}
+    widened = []
+    for table in schema_tables().values():
+        for col, typ in table.columns.items():
+            m = re.fullmatch(r"N?VARCHAR\((\d+)\)", typ)
+            cur = have.get((table.name, col))
+            if m and cur is not None and cur < int(m.group(1)):
+                db.execute(f'ALTER TABLE "{_check_name(table.name)}" ALTER ("{col}" {typ})')
+                widened.append(f"{table.name}.{col}")
+    return widened
 
 
 # ---------------------------------------------------------------- seed CSVs

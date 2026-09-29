@@ -8,6 +8,7 @@ numpy
 hdbcli
 hana-ml
 networkx
+searoute
 ortools
 statsmodels
 pdfplumber

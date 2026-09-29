@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 RULES_DIR = Path(__file__).resolve().parent.parent / "rules"
-FILES = ("weights", "dpco", "sop_controls")
+FILES = ("weights", "dpco", "sop_controls", "disruption")
 
 # Keys that must exist so agents can rely on them (plan §4).
 REQUIRED_CONSTANTS: dict[str, tuple[str, ...]] = {
@@ -29,6 +29,10 @@ REQUIRED_CONSTANTS: dict[str, tuple[str, ...]] = {
         "watchlist.top_n",
     ),
     "dpco": ("constants.gst_rate_medicines", "constants.discontinuation_notice_months"),
+    "disruption": (
+        "sensing.escalate_confidence_below", "scenario.lead_time_passthrough", "logistics.carriers",
+        "inventory.service_z.V", "governance.human_cost_threshold_inr", "governance.auto_run_budget_inr",
+    ),
 }
 # The ten A5 checks from the plan §3 A5 table.
 REQUIRED_CHECKS: dict[str, tuple[str, ...]] = {

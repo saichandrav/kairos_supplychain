@@ -105,6 +105,11 @@ class Situation:
 def _ceiling(db: Db, form_id: str, as_of: date, rules: Rules) -> tuple[float | None, float]:
     cp = try_query(db, "SELECT EFFECTIVE_FROM, CEILING_PRICE, GST_RATE FROM FF_REF_CEILING_PRICE WHERE FORM_ID = ?",
                    (form_id,))
+    return _ceiling_of(cp, as_of, rules)
+
+
+def _ceiling_of(cp: pd.DataFrame | None, as_of: date, rules: Rules) -> tuple[float | None, float]:
+    """(ceiling, GST) in force on as_of from one formulation's FF_REF_CEILING_PRICE rows."""
     default_gst = float(rules.value("dpco", "constants.gst_rate_medicines"))
     if cp is None or cp.empty:
         return None, default_gst
@@ -132,7 +137,12 @@ def _last_po(db: Db, material: str, vendor: str | None = None) -> tuple[str | No
 
 
 def _producers(db: Db, form_id: str) -> list[str]:
-    p = db.query("SELECT MANUFACTURER_ID, MARKET_SHARE FROM FF_REF_PRODUCER WHERE FORM_ID = ?", (form_id,))
+    return _producers_of(db.query("SELECT MANUFACTURER_ID, MARKET_SHARE FROM FF_REF_PRODUCER WHERE FORM_ID = ?",
+                                  (form_id,)))
+
+
+def _producers_of(p: pd.DataFrame) -> list[str]:
+    """Manufacturer ids by market share (desc), then id."""
     p = p.assign(S=pd.to_numeric(p["MARKET_SHARE"], errors="coerce").fillna(0.0))
     return p.sort_values(["S", "MANUFACTURER_ID"], ascending=[False, True])["MANUFACTURER_ID"].astype(str).tolist()
 
@@ -197,14 +207,26 @@ def _therapeutic(db: Db, form_id: str, as_of: date, rules: Rules) -> list[Option
         return []
     alts = db.query("SELECT FORM_ID FROM FF_REF_FORMULATION WHERE THERAPEUTIC_CLASS = ? AND FORM_ID <> ? "
                     "ORDER BY FORM_ID", (cls.iloc[0]["THERAPEUTIC_CLASS"], form_id))
+    ids = alts["FORM_ID"].astype(str).tolist()
+    if not ids:
+        return []
+    # one query per table for the whole class instead of three round trips per alternate
+    marks = placeholders(ids)
+    mara = db.query(f"SELECT FORM_ID, MATNR FROM FF_MM_MARA WHERE FORM_ID IN ({marks}) ORDER BY MATNR", ids)
+    cps = try_query(db, "SELECT FORM_ID, EFFECTIVE_FROM, CEILING_PRICE, GST_RATE FROM FF_REF_CEILING_PRICE "
+                        f"WHERE FORM_ID IN ({marks})", ids)
+    prods = db.query(f"SELECT FORM_ID, MANUFACTURER_ID, MARKET_SHARE FROM FF_REF_PRODUCER WHERE FORM_ID IN ({marks})", ids)
+    first_mat = mara.assign(F=mara["FORM_ID"].astype(str)).groupby("F")["MATNR"].first()
+    cp_by = {} if cps is None else {k: g for k, g in cps.groupby(cps["FORM_ID"].astype(str))}
+    prod_by = {k: g for k, g in prods.groupby(prods["FORM_ID"].astype(str))}
+    empty_prods = prods.iloc[0:0]
     out = []
-    for alt in alts["FORM_ID"].astype(str):
-        mara = db.query("SELECT MATNR FROM FF_MM_MARA WHERE FORM_ID = ? ORDER BY MATNR", (alt,))
-        alt_mat = str(mara.iloc[0]["MATNR"]) if len(mara) else None
+    for alt in ids:
+        alt_mat = str(first_mat[alt]) if alt in first_mat.index else None
         vendor, net = _last_po(db, alt_mat) if alt_mat else (None, None)
-        ceiling, gst = _ceiling(db, alt, as_of, rules)
+        ceiling, gst = _ceiling_of(cp_by.get(alt), as_of, rules)
         net = net if net is not None else ceiling
-        producers = _producers(db, alt)
+        producers = _producers_of(prod_by.get(alt, empty_prods))
         supplier = vendor or (producers[0] if producers else None)
         if net is None or supplier is None:
             continue
